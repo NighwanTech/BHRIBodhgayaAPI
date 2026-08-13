@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Committee Upload API</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 600px;
+            margin: 50px auto;
+            padding: 20px;
+            border: 1px solid #ccc;
+            border-radius: 10px;
+            background-color: #f9f9f9;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        input[type="text"], input[type="file"], input[type="email"], input[type="password"] {
+            width: 100%;
+            padding: 8px;
+            box-sizing: border-box;
+        }
+        button {
+            padding: 10px 15px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        #responseArea {
+            margin-top: 20px;
+            padding: 10px;
+            border: 1px solid #ddd;
+            background-color: #fff;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+    </style>
+</head>
+<body>
+
+    <h2>Test Admin Panel - Committee PDF Upload</h2>
+    
+    <div class="form-group">
+        <label>Admin Email</label>
+        <input type="email" id="email" value="admin@bhri.org">
+    </div>
+    
+    <div class="form-group">
+        <label>Admin Password</label>
+        <input type="password" id="password" value="admin123">
+    </div>
+
+    <hr>
+
+    <div class="form-group">
+        <label>Committee Name</label>
+        <input type="text" id="committeeName" placeholder="e.g. College Council Committee">
+    </div>
+
+    <div class="form-group">
+        <label>Select PDF</label>
+        <input type="file" id="pdfFile" accept="application/pdf">
+    </div>
+
+    <button onclick="testUpload()">Upload & Create Committee</button>
+
+    <div id="responseArea">Responses will appear here...</div>
+
+    <script>
+        async function testUpload() {
+            const responseArea = document.getElementById('responseArea');
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            const committeeName = document.getElementById('committeeName').value;
+            const pdfFile = document.getElementById('pdfFile').files[0];
+
+            if (!committeeName) {
+                alert("Please enter a committee name");
+                return;
+            }
+
+            responseArea.innerText = "Step 1: Logging in...\n";
+
+            try {
+                // 1. Login to get token
+                const loginRes = await fetch('http://localhost:5000/api/auth/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email, password })
+                });
+
+                const loginData = await loginRes.json();
+                
+                if (!loginData.success) {
+                    throw new Error("Login failed: " + JSON.stringify(loginData));
+                }
+
+                const token = loginData.data.token;
+                responseArea.innerText += "Login successful! Token obtained.\n\nStep 2: Uploading Committee data...\n";
+
+                // 2. Prepare FormData
+                const formData = new FormData();
+                formData.append('name', committeeName);
+                if (pdfFile) {
+                    formData.append('pdf', pdfFile);
+                }
+
+                // 3. Send POST request to committees endpoint
+                const uploadRes = await fetch('http://localhost:5000/api/committees', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                        // Do NOT set Content-Type for FormData, let the browser set it with the boundary!
+                    },
+                    body: formData
+                });
+
+                const uploadData = await uploadRes.json();
+
+                if (uploadData.success) {
+                    responseArea.innerText += "\nSuccess! Committee created:\n" + JSON.stringify(uploadData.data, null, 2);
+                } else {
+                    responseArea.innerText += "\nFailed to create committee:\n" + JSON.stringify(uploadData, null, 2);
+                }
+
+            } catch (error) {
+                responseArea.innerText += "\nError occurred: " + error.message;
+                console.error(error);
+            }
+        }
+    </script>
+</body>
+</html>
